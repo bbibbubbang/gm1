@@ -43,17 +43,74 @@ gridHelper.material.transparent = true;
 scene.add(gridHelper);
 
 // Player setup
-const playerGeometry = new THREE.CapsuleGeometry(0.5, 1, 4, 8);
-const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-const player = new THREE.Mesh(playerGeometry, playerMaterial);
-player.position.y = 1; // Capsule half height + radius
-player.castShadow = true;
-player.receiveShadow = true;
+const player = new THREE.Group();
+player.position.y = 1;
+
+const skinMaterial = new THREE.MeshStandardMaterial({ color: 0xffe0bd });
+const clothesMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+
+// Body
+const bodyGeometry = new THREE.BoxGeometry(0.6, 1, 0.4);
+const body = new THREE.Mesh(bodyGeometry, clothesMaterial);
+body.position.y = 0; // Centered
+body.castShadow = true;
+body.receiveShadow = true;
+player.add(body);
+
+// Head
+const headGeometry = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+const head = new THREE.Mesh(headGeometry, skinMaterial);
+head.position.y = 0.7; // Top of body (0.5) + half head height (0.2)
+head.castShadow = true;
+head.receiveShadow = true;
+player.add(head);
+
+// Eyes (to indicate front direction)
+const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
+const eyeGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+
+const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+leftEye.position.set(-0.1, 0.75, 0.21); // Front face (+z)
+player.add(leftEye);
+
+const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+rightEye.position.set(0.1, 0.75, 0.21); // Front face (+z)
+player.add(rightEye);
+
+// Arms
+const armGeometry = new THREE.BoxGeometry(0.2, 0.8, 0.2);
+const leftArm = new THREE.Mesh(armGeometry, skinMaterial);
+leftArm.position.set(-0.4, 0.1, 0); // Next to body
+leftArm.castShadow = true;
+leftArm.receiveShadow = true;
+player.add(leftArm);
+
+const rightArm = new THREE.Mesh(armGeometry, skinMaterial);
+rightArm.position.set(0.4, 0.1, 0); // Next to body
+rightArm.castShadow = true;
+rightArm.receiveShadow = true;
+player.add(rightArm);
+
+// Legs
+const legGeometry = new THREE.BoxGeometry(0.25, 0.8, 0.25);
+const pantsMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+const leftLeg = new THREE.Mesh(legGeometry, pantsMaterial);
+leftLeg.position.set(-0.15, -0.9, 0); // Bottom of body is -0.5, so -0.5 - 0.4 = -0.9
+leftLeg.castShadow = true;
+leftLeg.receiveShadow = true;
+player.add(leftLeg);
+
+const rightLeg = new THREE.Mesh(legGeometry, pantsMaterial);
+rightLeg.position.set(0.15, -0.9, 0); // Bottom of body is -0.5, so -0.5 - 0.4 = -0.9
+rightLeg.castShadow = true;
+rightLeg.receiveShadow = true;
+player.add(rightLeg);
+
 scene.add(player);
 
 // Camera Pivot for 3rd Person View
 const cameraPivot = new THREE.Object3D();
-player.add(cameraPivot);
+scene.add(cameraPivot);
 
 // Position camera behind and slightly above the player
 camera.position.set(0, 2, 5);
@@ -384,8 +441,10 @@ function animate() {
 
             // Rotate player mesh to face movement direction (optional, but looks good)
             const targetRotation = Math.atan2(velocity.x, velocity.z);
-            // Smooth rotation towards target
-            player.rotation.y += (targetRotation - player.rotation.y) * 10 * delta;
+            // Smooth rotation towards target using shortest path
+            let diff = targetRotation - player.rotation.y;
+            diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+            player.rotation.y += diff * 10 * delta;
         } else {
             // Friction/Deceleration
             velocity.x -= velocity.x * 10.0 * delta;
@@ -410,6 +469,8 @@ function animate() {
             isGrounded = true;
         }
     }
+
+    cameraPivot.position.copy(player.position);
 
     renderer.render(scene, camera);
 }
