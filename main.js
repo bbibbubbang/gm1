@@ -458,8 +458,8 @@ function animate() {
         }
 
         // Apply velocity to position
-        player.position.x -= velocity.x * delta;
-        player.position.z -= velocity.z * delta;
+        player.position.x += velocity.x * delta;
+        player.position.z += velocity.z * delta;
         player.position.y += velocity.y * delta;
 
         // Basic Floor Collision
