@@ -426,7 +426,7 @@ function animate() {
 
         // Determine movement direction
         direction.z = Number(keys.KeyW) - Number(keys.KeyS);
-        direction.x = Number(keys.KeyD) - Number(keys.KeyA);
+        direction.x = Number(keys.KeyA) - Number(keys.KeyD);
         direction.normalize(); // Ensure diagonal movement isn't faster
 
         if (direction.z !== 0 || direction.x !== 0) {
@@ -440,7 +440,7 @@ function animate() {
             velocity.x = (Math.sin(angle) * direction.z + Math.cos(angle) * direction.x) * playerSpeed;
 
             // Rotate player mesh to face movement direction (optional, but looks good)
-            const targetRotation = Math.atan2(velocity.x, velocity.z);
+            const targetRotation = Math.atan2(velocity.x, velocity.z) + Math.PI;
             // Smooth rotation towards target using shortest path
             let diff = targetRotation - player.rotation.y;
             diff = Math.atan2(Math.sin(diff), Math.cos(diff));
