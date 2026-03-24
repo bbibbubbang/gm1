@@ -110,6 +110,7 @@ scene.add(player);
 
 // Camera Pivot for 3rd Person View
 const cameraPivot = new THREE.Object3D();
+cameraPivot.rotation.order = 'YXZ';
 scene.add(cameraPivot);
 
 // Position camera behind and slightly above the player
@@ -430,14 +431,25 @@ function animate() {
         direction.normalize(); // Ensure diagonal movement isn't faster
 
         if (direction.z !== 0 || direction.x !== 0) {
-            // Apply camera rotation to movement direction
-            const angle = cameraPivot.rotation.y;
+            // Apply camera rotation to movement direction using forward/right vectors
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(cameraPivot.quaternion);
+            forward.y = 0;
+            forward.normalize();
 
-            // Calculate movement vectors based on camera rotation
-            // Forward/backward
-            velocity.z = (Math.cos(angle) * direction.z - Math.sin(angle) * direction.x) * playerSpeed;
-            // Left/right
-            velocity.x = (Math.sin(angle) * direction.z + Math.cos(angle) * direction.x) * playerSpeed;
+            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cameraPivot.quaternion);
+            right.y = 0;
+            right.normalize();
+
+            // Calculate movement velocity vectors based on camera direction
+            // direction.z is -1 for W, 1 for S. Multiply by forward vector.
+            // direction.x is -1 for A, 1 for D. Multiply by right vector.
+            const moveDirection = new THREE.Vector3()
+                .addScaledVector(forward, -direction.z)
+                .addScaledVector(right, direction.x)
+                .normalize();
+
+            velocity.z = moveDirection.z * playerSpeed;
+            velocity.x = moveDirection.x * playerSpeed;
 
             // Rotate player mesh to face movement direction (optional, but looks good)
             const targetRotation = Math.atan2(velocity.x, velocity.z);
