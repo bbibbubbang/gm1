@@ -10,10 +10,10 @@ export class ForestMap {
 
         // Boundaries for the map
         this.mapBounds = {
-            minX: -45,
-            maxX: 45,
-            minZ: -45,
-            maxZ: 45
+            minX: -22,
+            maxX: 22,
+            minZ: -22,
+            maxZ: 22
         };
 
         // Spawn point for the player
@@ -55,7 +55,7 @@ export class ForestMap {
 
     async init() {
         // Create Forest Floor
-        const floorGeometry = new THREE.PlaneGeometry(120, 120, 60, 60);
+        const floorGeometry = new THREE.PlaneGeometry(60, 60, 30, 30);
 
         // Apply elevation to the floor vertices
         const positions = floorGeometry.attributes.position;
@@ -132,10 +132,6 @@ export class ForestMap {
         ]);
 
         // Helper function to scatter models
-        // A simple invisible cylinder to use for tree/rock collisions instead of complex mesh
-        const treeColliderGeo = new THREE.CylinderGeometry(0.5, 0.5, 10, 8);
-        const treeColliderMat = new THREE.MeshBasicMaterial({ visible: false });
-
         const scatter = (models, count, scaleRange, avoidCenterRadius = 5, hasCollision = false) => {
             if (models.length === 0) {
                 console.log(`Scatter called with 0 models!`);
@@ -162,10 +158,7 @@ export class ForestMap {
                 this.scene.add(model);
                 this.models.push(model);
                 if (hasCollision) {
-                    const collider = new THREE.Mesh(treeColliderGeo, treeColliderMat);
-                    collider.position.set(x, y + 5, z); // Center cylinder vertically
-                    collider.updateMatrixWorld(true);
-                    collidableGroup.add(collider);
+                    collidableGroup.add(model.clone());
                 }
                 actualCount++;
             }
@@ -173,19 +166,19 @@ export class ForestMap {
         };
 
         // Scatter items across the map. Trees and rocks have collision.
-        scatter(treeModels, 100, [0.8, 1.5], 8, true);
-        scatter(bushModels, 60, [0.8, 1.2], 5, false);
-        scatter(rockModels, 40, [0.5, 1.5], 4, true);
-        scatter(mushroomModels, 80, [0.5, 1.0], 3, false);
-        scatter(grassModels, 200, [1.0, 1.5], 2, false);
+        scatter(treeModels, 30, [0.8, 1.5], 8, true);
+        scatter(bushModels, 20, [0.8, 1.2], 5, true);
+        scatter(rockModels, 10, [0.5, 1.5], 4, true);
+        scatter(mushroomModels, 25, [0.5, 1.0], 3, true);
+        scatter(grassModels, 60, [1.0, 1.5], 2, false);
 
         // Create a dense visual boundary of trees and rocks to show limits
         if (treeModels.length > 0) {
-            const boundaryTrees = 120;
+            const boundaryTrees = 60;
             for(let i = 0; i < boundaryTrees; i++) {
                 const angle = (i / boundaryTrees) * Math.PI * 2;
                 // Place just outside the functional bounds
-                const radius = 48;
+                const radius = 26;
                 // Add some noise to the boundary placement
                 const x = Math.cos(angle) * radius + (Math.random() * 2 - 1);
                 const z = Math.sin(angle) * radius + (Math.random() * 2 - 1);
@@ -201,10 +194,7 @@ export class ForestMap {
                 this.scene.add(model);
                 this.models.push(model);
 
-                const collider = new THREE.Mesh(treeColliderGeo, treeColliderMat);
-                collider.position.set(x, y + 5, z);
-                collider.updateMatrixWorld(true);
-                collidableGroup.add(collider);
+                collidableGroup.add(model.clone());
             }
         }
 

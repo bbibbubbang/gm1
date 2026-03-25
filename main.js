@@ -56,7 +56,7 @@ const clothesMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
 // Body
 const bodyGeometry = new THREE.BoxGeometry(0.6, 1, 0.4);
 const body = new THREE.Mesh(bodyGeometry, clothesMaterial);
-body.position.y = 0; // Centered
+body.position.y = 0.9; // Centered + 0.9 to make foot at y=0
 body.castShadow = true;
 body.receiveShadow = true;
 player.add(body);
@@ -64,7 +64,7 @@ player.add(body);
 // Head
 const headGeometry = new THREE.BoxGeometry(0.4, 0.4, 0.4);
 const head = new THREE.Mesh(headGeometry, skinMaterial);
-head.position.y = 0.7; // Top of body (0.5) + half head height (0.2)
+head.position.y = 1.6; // Top of body (1.4) + half head height (0.2)
 head.castShadow = true;
 head.receiveShadow = true;
 player.add(head);
@@ -74,23 +74,23 @@ const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
 const eyeGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
 
 const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-leftEye.position.set(-0.1, 0.75, 0.21); // Front face (+z)
+leftEye.position.set(-0.1, 1.65, 0.21); // Front face (+z)
 player.add(leftEye);
 
 const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-rightEye.position.set(0.1, 0.75, 0.21); // Front face (+z)
+rightEye.position.set(0.1, 1.65, 0.21); // Front face (+z)
 player.add(rightEye);
 
 // Arms
 const armGeometry = new THREE.BoxGeometry(0.2, 0.8, 0.2);
 const leftArm = new THREE.Mesh(armGeometry, skinMaterial);
-leftArm.position.set(-0.4, 0.1, 0); // Next to body
+leftArm.position.set(-0.4, 1.0, 0); // Next to body
 leftArm.castShadow = true;
 leftArm.receiveShadow = true;
 player.add(leftArm);
 
 const rightArm = new THREE.Mesh(armGeometry, skinMaterial);
-rightArm.position.set(0.4, 0.1, 0); // Next to body
+rightArm.position.set(0.4, 1.0, 0); // Next to body
 rightArm.castShadow = true;
 rightArm.receiveShadow = true;
 player.add(rightArm);
@@ -99,13 +99,13 @@ player.add(rightArm);
 const legGeometry = new THREE.BoxGeometry(0.25, 0.8, 0.25);
 const pantsMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
 const leftLeg = new THREE.Mesh(legGeometry, pantsMaterial);
-leftLeg.position.set(-0.15, -0.9, 0); // Bottom of body is -0.5, so -0.5 - 0.4 = -0.9
+leftLeg.position.set(-0.15, 0, 0); // Raised by 0.9 so bottom is at 0 (-0.4 for leg center)
 leftLeg.castShadow = true;
 leftLeg.receiveShadow = true;
 player.add(leftLeg);
 
 const rightLeg = new THREE.Mesh(legGeometry, pantsMaterial);
-rightLeg.position.set(0.15, -0.9, 0); // Bottom of body is -0.5, so -0.5 - 0.4 = -0.9
+rightLeg.position.set(0.15, 0, 0); // Raised by 0.9
 rightLeg.castShadow = true;
 rightLeg.receiveShadow = true;
 player.add(rightLeg);
@@ -158,12 +158,31 @@ instructions.addEventListener('click', () => {
         // Show mobile UI instead of crosshair
         joystickZone.style.display = 'block';
         touchLookZone.style.display = 'block';
+        document.getElementById('jump-btn').style.display = 'flex';
 
     } else {
         // Desktop flow
         document.body.requestPointerLock();
     }
 });
+
+const jumpBtn = document.getElementById('jump-btn');
+if (jumpBtn) {
+    jumpBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        keys.Space = true;
+    }, { passive: false });
+
+    jumpBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        keys.Space = false;
+    }, { passive: false });
+
+    jumpBtn.addEventListener('touchcancel', (e) => {
+        e.preventDefault();
+        keys.Space = false;
+    }, { passive: false });
+}
 
 document.addEventListener('pointerlockchange', () => {
     if (!isMobile) {
@@ -549,7 +568,7 @@ function updateCameraLook(movementX, movementY) {
 }
 
 // --- Player Movement & Physics ---
-const playerSpeed = 10;
+const playerSpeed = 6;
 const jumpForce = 15;
 const gravity = 30;
 
@@ -647,7 +666,8 @@ function animate() {
         direction.x = (Number(keys.KeyD) - Number(keys.KeyA)) + joystickDirection.x;
 
         // Clamp to max length 1 to prevent going faster by pressing both W and Joystick Forward
-        if (direction.length() > 1) {
+        const speedRatio = Math.min(direction.length(), 1.0);
+        if (direction.length() > 0) {
             direction.normalize();
         }
 
@@ -669,8 +689,8 @@ function animate() {
                 .addScaledVector(right, direction.x)
                 .normalize();
 
-            velocity.z = moveDirection.z * playerSpeed;
-            velocity.x = moveDirection.x * playerSpeed;
+            velocity.z = moveDirection.z * playerSpeed * speedRatio;
+            velocity.x = moveDirection.x * playerSpeed * speedRatio;
 
             // Rotate player mesh to face movement direction (optional, but looks good)
             const targetRotation = Math.atan2(velocity.x, velocity.z);
@@ -736,7 +756,7 @@ function animate() {
 
         // Apply capsule position to player mesh
         player.position.copy(playerCollider.start);
-        player.position.y -= 0.5; // Offset to match mesh centered at origin relative to capsule base
+        player.position.y -= 0.15; // The base of capsule is at start.y - radius (0.5 - 0.35 = 0.15)
 
         // Tracking Camera Logic
         if (trackingCameraEnabled && (performance.now() - lastManualLookTime > 2000)) {
