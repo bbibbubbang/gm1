@@ -75,28 +75,38 @@ export class ForestMap {
         };
 
         const loadCategory = async (paths) => {
-            const scenes = [];
-            for (const p of paths) {
+            const loadPromises = paths.map(async (p) => {
                 try {
+                    console.log(`Starting load for: ${p}`);
                     const scene = await this.loadModel(p);
-                    scenes.push(scene);
+                    console.log(`Successfully loaded: ${p}`);
+                    return scene;
                 } catch(e) {
                     console.error('Failed to load ' + p, e);
+                    return null;
                 }
-            }
-            return scenes;
+            });
+            const results = await Promise.all(loadPromises);
+            return results.filter(scene => scene !== null);
         };
 
-        // Pre-load all model categories
-        const treeModels = await loadCategory(modelPaths.trees);
-        const bushModels = await loadCategory(modelPaths.bushes);
-        const rockModels = await loadCategory(modelPaths.rocks);
-        const mushroomModels = await loadCategory(modelPaths.mushrooms);
-        const grassModels = await loadCategory(modelPaths.grass);
+        // Pre-load all model categories concurrently
+        const [treeModels, bushModels, rockModels, mushroomModels, grassModels] = await Promise.all([
+            loadCategory(modelPaths.trees),
+            loadCategory(modelPaths.bushes),
+            loadCategory(modelPaths.rocks),
+            loadCategory(modelPaths.mushrooms),
+            loadCategory(modelPaths.grass)
+        ]);
 
         // Helper function to scatter models
         const scatter = (models, count, scaleRange, avoidCenterRadius = 5) => {
-            if (models.length === 0) return;
+            if (models.length === 0) {
+                console.log(`Scatter called with 0 models!`);
+                return;
+            }
+            console.log(`Scattering ${count} instances of ${models.length} models...`);
+            let actualCount = 0;
             for (let i = 0; i < count; i++) {
                 let x, z;
                 // Generate position outside of the center avoid radius
@@ -113,7 +123,9 @@ export class ForestMap {
 
                 this.scene.add(model);
                 this.models.push(model);
+                actualCount++;
             }
+            console.log(`Successfully added ${actualCount} instances to scene.`);
         };
 
         // Scatter items across the map
