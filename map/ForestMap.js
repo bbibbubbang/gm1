@@ -131,6 +131,26 @@ export class ForestMap {
             loadCategory(modelPaths.grass)
         ]);
 
+        // Creates a collision-optimized clone by removing leaves
+        const cloneForCollision = (model) => {
+            const clone = model.clone();
+            const toRemove = [];
+            clone.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    const matName = child.material.name || '';
+                    if (matName.toLowerCase().includes('leaf')) {
+                        toRemove.push(child);
+                    }
+                }
+            });
+            toRemove.forEach((child) => {
+                if (child.parent) {
+                    child.parent.remove(child);
+                }
+            });
+            return clone;
+        };
+
         // Helper function to scatter models
         const scatter = (models, count, scaleRange, avoidCenterRadius = 5, hasCollision = false) => {
             if (models.length === 0) {
@@ -158,7 +178,8 @@ export class ForestMap {
                 this.scene.add(model);
                 this.models.push(model);
                 if (hasCollision) {
-                    collidableGroup.add(model.clone());
+                    const collidableModel = cloneForCollision(model);
+                    collidableGroup.add(collidableModel);
                 }
                 actualCount++;
             }
