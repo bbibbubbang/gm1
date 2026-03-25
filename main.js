@@ -115,19 +115,52 @@ const crosshair = document.getElementById('crosshair');
 
 let controlsEnabled = false;
 
+// Mobile UI Elements
+const joystickZone = document.getElementById('joystick-zone');
+const touchLookZone = document.getElementById('touch-look-zone');
+
+let isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
 instructions.addEventListener('click', () => {
-    document.body.requestPointerLock();
+    if (isMobile) {
+        // Mobile flow
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch((err) => {
+                console.log(`Error attempting to enable fullscreen: ${err.message}`);
+            });
+        }
+
+        // Attempt to lock to landscape
+        if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch((err) => {
+                console.log(`Error locking orientation: ${err.message}`);
+            });
+        }
+
+        controlsEnabled = true;
+        instructions.style.display = 'none';
+
+        // Show mobile UI instead of crosshair
+        joystickZone.style.display = 'block';
+        touchLookZone.style.display = 'block';
+
+    } else {
+        // Desktop flow
+        document.body.requestPointerLock();
+    }
 });
 
 document.addEventListener('pointerlockchange', () => {
-    if (document.pointerLockElement === document.body) {
-        controlsEnabled = true;
-        instructions.style.display = 'none';
-        crosshair.style.display = 'block';
-    } else {
-        controlsEnabled = false;
-        instructions.style.display = 'block';
-        crosshair.style.display = 'none';
+    if (!isMobile) {
+        if (document.pointerLockElement === document.body) {
+            controlsEnabled = true;
+            instructions.style.display = 'none';
+            crosshair.style.display = 'block';
+        } else {
+            controlsEnabled = false;
+            instructions.style.display = 'block';
+            crosshair.style.display = 'none';
+        }
     }
 });
 
@@ -160,6 +193,79 @@ document.addEventListener('keyup', (event) => {
     }
 });
 
+// --- Mobile Joystick Input ---
+const joystickKnob = document.getElementById('joystick-knob');
+const joystickDirection = { x: 0, z: 0 };
+let activeJoystickId = null;
+const maxJoystickRadius = 35; // How far the knob can move from center
+
+if (joystickZone) {
+    joystickZone.addEventListener('touchstart', handleJoystickStart, { passive: false });
+    joystickZone.addEventListener('touchmove', handleJoystickMove, { passive: false });
+    joystickZone.addEventListener('touchend', handleJoystickEnd, { passive: false });
+    joystickZone.addEventListener('touchcancel', handleJoystickEnd, { passive: false });
+}
+
+function handleJoystickStart(e) {
+    e.preventDefault();
+    if (activeJoystickId !== null) return;
+
+    // Track the first touch on the joystick
+    const touch = e.changedTouches[0];
+    activeJoystickId = touch.identifier;
+    updateJoystick(touch);
+}
+
+function handleJoystickMove(e) {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        if (touch.identifier === activeJoystickId) {
+            updateJoystick(touch);
+            break;
+        }
+    }
+}
+
+function handleJoystickEnd(e) {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === activeJoystickId) {
+            activeJoystickId = null;
+            joystickDirection.x = 0;
+            joystickDirection.z = 0;
+            joystickKnob.style.transform = `translate(-50%, -50%)`;
+            break;
+        }
+    }
+}
+
+function updateJoystick(touch) {
+    const rect = joystickZone.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    let dx = touch.clientX - centerX;
+    let dy = touch.clientY - centerY;
+
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Clamp to max radius
+    if (distance > maxJoystickRadius) {
+        dx = (dx / distance) * maxJoystickRadius;
+        dy = (dy / distance) * maxJoystickRadius;
+    }
+
+    // Update visual position of the knob
+    joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+    // Normalize values between -1 and 1
+    // For 3D movement, Up (-dy) corresponds to forward (-z), Right (+dx) to right (+x)
+    joystickDirection.x = dx / maxJoystickRadius;
+    joystickDirection.z = dy / maxJoystickRadius;
+}
+
+
 // --- Hotbar & Skill System ---
 const hotbarContainer = document.getElementById('hotbar-container');
 const numSlots = 9;
@@ -184,6 +290,14 @@ for (let i = 0; i < numSlots; i++) {
     slot.appendChild(numberSpan);
     slot.appendChild(iconSpan);
     slot.appendChild(cooldownOverlay);
+
+    // Add touch support for skills
+    slot.addEventListener('pointerdown', (e) => {
+        // Prevent event from bubbling up and moving camera
+        e.preventDefault();
+        selectHotbarSlot(i);
+        useSkill(i);
+    });
 
     hotbarContainer.appendChild(slot);
     hotbarSlots.push({
@@ -338,11 +452,65 @@ const minPolarAngle = 0;
 const maxPolarAngle = Math.PI;
 
 document.addEventListener('mousemove', (event) => {
-    if (!controlsEnabled) return;
+    if (!controlsEnabled || isMobile) return;
 
     const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
     const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
 
+    updateCameraLook(movementX, movementY);
+});
+
+// Touch Look Logic
+let activeLookTouchId = null;
+let lastTouchX = 0;
+let lastTouchY = 0;
+
+if (touchLookZone) {
+    touchLookZone.addEventListener('touchstart', handleLookStart, { passive: false });
+    touchLookZone.addEventListener('touchmove', handleLookMove, { passive: false });
+    touchLookZone.addEventListener('touchend', handleLookEnd, { passive: false });
+    touchLookZone.addEventListener('touchcancel', handleLookEnd, { passive: false });
+}
+
+function handleLookStart(e) {
+    e.preventDefault();
+    if (activeLookTouchId !== null) return;
+
+    const touch = e.changedTouches[0];
+    activeLookTouchId = touch.identifier;
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
+}
+
+function handleLookMove(e) {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        if (touch.identifier === activeLookTouchId) {
+
+            const movementX = touch.clientX - lastTouchX;
+            const movementY = touch.clientY - lastTouchY;
+
+            lastTouchX = touch.clientX;
+            lastTouchY = touch.clientY;
+
+            updateCameraLook(movementX, movementY);
+            break;
+        }
+    }
+}
+
+function handleLookEnd(e) {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === activeLookTouchId) {
+            activeLookTouchId = null;
+            break;
+        }
+    }
+}
+
+function updateCameraLook(movementX, movementY) {
     euler.setFromQuaternion(cameraPivot.quaternion);
 
     euler.y -= movementX * 0.002;
@@ -354,7 +522,7 @@ document.addEventListener('mousemove', (event) => {
     euler.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, euler.x));
 
     cameraPivot.quaternion.setFromEuler(euler);
-});
+}
 
 // --- Player Movement & Physics ---
 const playerSpeed = 10;
@@ -417,10 +585,14 @@ function animate() {
         // Apply gravity
         velocity.y -= gravity * delta;
 
-        // Determine movement direction
-        direction.z = Number(keys.KeyS) - Number(keys.KeyW);
-        direction.x = Number(keys.KeyD) - Number(keys.KeyA);
-        direction.normalize(); // Ensure diagonal movement isn't faster
+        // Determine movement direction (combining keyboard and joystick)
+        direction.z = (Number(keys.KeyS) - Number(keys.KeyW)) + joystickDirection.z;
+        direction.x = (Number(keys.KeyD) - Number(keys.KeyA)) + joystickDirection.x;
+
+        // Clamp to max length 1 to prevent going faster by pressing both W and Joystick Forward
+        if (direction.length() > 1) {
+            direction.normalize();
+        }
 
         if (direction.z !== 0 || direction.x !== 0) {
             // Apply camera rotation to movement direction using forward/right vectors
