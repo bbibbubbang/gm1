@@ -166,10 +166,16 @@ export class ForestMap {
         };
 
         // Scatter items across the map. Trees and rocks have collision.
-        scatter(treeModels, 30, [0.8, 1.5], 8, true);
-        scatter(bushModels, 20, [0.8, 1.2], 5, true);
-        scatter(rockModels, 10, [0.5, 1.5], 4, true);
-        scatter(mushroomModels, 25, [0.5, 1.0], 3, true);
+        // We further reduce collision objects to improve Octree build times.
+        scatter(treeModels, 15, [0.8, 1.5], 8, true);
+        scatter(treeModels, 15, [0.8, 1.5], 8, false); // Visual only trees
+
+        scatter(bushModels, 20, [0.8, 1.2], 5, false);
+
+        scatter(rockModels, 5, [0.5, 1.5], 4, true);
+        scatter(rockModels, 5, [0.5, 1.5], 4, false); // Visual only rocks
+
+        scatter(mushroomModels, 25, [0.5, 1.0], 3, false);
         scatter(grassModels, 60, [1.0, 1.5], 2, false);
 
         // Create a dense visual boundary of trees and rocks to show limits
@@ -194,7 +200,8 @@ export class ForestMap {
                 this.scene.add(model);
                 this.models.push(model);
 
-                collidableGroup.add(model.clone());
+                // Do not add boundary trees to collision, player boundary checks prevent going here anyway
+                // collidableGroup.add(model.clone());
             }
         }
 
