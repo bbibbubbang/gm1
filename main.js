@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ForestMap } from './map/ForestMap.js';
 
 // --- Scene Setup ---
 const canvas = document.getElementById('gameCanvas');
@@ -29,18 +30,9 @@ dirLight.shadow.camera.near = 0.1;
 dirLight.shadow.camera.far = 40;
 scene.add(dirLight);
 
-// Environment (Floor)
-const floorGeometry = new THREE.PlaneGeometry(200, 200);
-const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x4CAF50, roughness: 0.8 }); // Grass green
-const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-floor.rotation.x = -Math.PI / 2;
-floor.receiveShadow = true;
-scene.add(floor);
-
-const gridHelper = new THREE.GridHelper(200, 50, 0x000000, 0x000000);
-gridHelper.material.opacity = 0.2;
-gridHelper.material.transparent = true;
-scene.add(gridHelper);
+// Initialize Forest Map
+export const forestMap = new ForestMap(scene);
+forestMap.init();
 
 // Player setup
 const player = new THREE.Group();
@@ -473,6 +465,27 @@ function animate() {
         player.position.x += velocity.x * delta;
         player.position.z += velocity.z * delta;
         player.position.y += velocity.y * delta;
+
+        // Apply boundary restrictions
+        if (forestMap && forestMap.mapBounds) {
+            const bounds = forestMap.mapBounds;
+
+            // Failsafe: if player falls way below map or glitches completely out
+            if (player.position.y < -10 ||
+                player.position.x < bounds.minX - 5 ||
+                player.position.x > bounds.maxX + 5 ||
+                player.position.z < bounds.minZ - 5 ||
+                player.position.z > bounds.maxZ + 5) {
+
+                // Forceful teleport to spawn
+                player.position.copy(forestMap.spawnPoint);
+                velocity.set(0, 0, 0);
+            } else {
+                // Normal boundary clamp
+                player.position.x = Math.max(bounds.minX, Math.min(bounds.maxX, player.position.x));
+                player.position.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, player.position.z));
+            }
+        }
 
         // Basic Floor Collision
         if (player.position.y < 1) { // 1 is half capsule height + radius
