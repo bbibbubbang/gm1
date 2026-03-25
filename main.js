@@ -231,6 +231,8 @@ document.addEventListener('keyup', (event) => {
 const joystickKnob = document.getElementById('joystick-knob');
 const joystickDirection = { x: 0, z: 0 };
 let activeJoystickId = null;
+let joystickStartX = 0;
+let joystickStartY = 0;
 const maxJoystickRadius = 35; // How far the knob can move from center
 
 if (joystickZone) {
@@ -247,6 +249,8 @@ function handleJoystickStart(e) {
     // Track the first touch on the joystick
     const touch = e.changedTouches[0];
     activeJoystickId = touch.identifier;
+    joystickStartX = touch.clientX;
+    joystickStartY = touch.clientY;
     updateJoystick(touch);
 }
 
@@ -275,12 +279,8 @@ function handleJoystickEnd(e) {
 }
 
 function updateJoystick(touch) {
-    const rect = joystickZone.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-
-    let dx = touch.clientX - centerX;
-    let dy = touch.clientY - centerY;
+    let dx = touch.clientX - joystickStartX;
+    let dy = touch.clientY - joystickStartY;
 
     const distance = Math.sqrt(dx * dx + dy * dy);
 
@@ -582,6 +582,7 @@ const optionsBtn = document.getElementById('options-btn');
 const optionsMenu = document.getElementById('options-menu');
 const closeOptionsBtn = document.getElementById('close-options-btn');
 const trackingCameraCb = document.getElementById('tracking-camera-cb');
+const fullscreenBtn = document.getElementById('fullscreen-btn');
 
 let trackingCameraEnabled = false;
 let lastManualLookTime = 0;
@@ -591,6 +592,21 @@ if (optionsBtn) {
         optionsMenu.style.display = 'flex';
         if (!isMobile) {
             document.exitPointerLock();
+        }
+    });
+}
+
+if (fullscreenBtn) {
+    fullscreenBtn.addEventListener('click', () => {
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch((err) => {
+                console.log(`Error attempting to enable fullscreen: ${err.message}`);
+            });
+        }
+        if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch((err) => {
+                console.log(`Error locking orientation: ${err.message}`);
+            });
         }
     });
 }
@@ -756,7 +772,7 @@ function animate() {
 
         // Apply capsule position to player mesh
         player.position.copy(playerCollider.start);
-        player.position.y -= 0.15; // The base of capsule is at start.y - radius (0.5 - 0.35 = 0.15)
+        player.position.y -= 0.35; // The base of capsule is at start.y - radius (0.5 - 0.35 = 0.15), and radius is 0.35
 
         // Tracking Camera Logic
         if (trackingCameraEnabled && (performance.now() - lastManualLookTime > 2000)) {
