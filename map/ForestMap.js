@@ -72,7 +72,9 @@ export class ForestMap {
         floor.rotation.x = -Math.PI / 2;
         floor.receiveShadow = true;
         this.scene.add(floor);
-        this.worldOctree.fromGraphNode(floor);
+
+        const collidableGroup = new THREE.Group();
+        collidableGroup.add(floor.clone());
 
         // Load textures if needed, but GLTFs usually come with their materials.
 
@@ -130,6 +132,10 @@ export class ForestMap {
         ]);
 
         // Helper function to scatter models
+        // A simple invisible cylinder to use for tree/rock collisions instead of complex mesh
+        const treeColliderGeo = new THREE.CylinderGeometry(0.5, 0.5, 10, 8);
+        const treeColliderMat = new THREE.MeshBasicMaterial({ visible: false });
+
         const scatter = (models, count, scaleRange, avoidCenterRadius = 5, hasCollision = false) => {
             if (models.length === 0) {
                 console.log(`Scatter called with 0 models!`);
@@ -156,7 +162,10 @@ export class ForestMap {
                 this.scene.add(model);
                 this.models.push(model);
                 if (hasCollision) {
-                    this.worldOctree.fromGraphNode(model);
+                    const collider = new THREE.Mesh(treeColliderGeo, treeColliderMat);
+                    collider.position.set(x, y + 5, z); // Center cylinder vertically
+                    collider.updateMatrixWorld(true);
+                    collidableGroup.add(collider);
                 }
                 actualCount++;
             }
@@ -191,8 +200,19 @@ export class ForestMap {
 
                 this.scene.add(model);
                 this.models.push(model);
-                this.worldOctree.fromGraphNode(model);
+
+                const collider = new THREE.Mesh(treeColliderGeo, treeColliderMat);
+                collider.position.set(x, y + 5, z);
+                collider.updateMatrixWorld(true);
+                collidableGroup.add(collider);
             }
         }
+
+        console.log("Building Octree...");
+        console.time("buildOctree");
+        collidableGroup.updateMatrixWorld(true);
+        this.worldOctree.fromGraphNode(collidableGroup);
+        console.timeEnd("buildOctree");
+        console.log("Octree built successfully.");
     }
 }
