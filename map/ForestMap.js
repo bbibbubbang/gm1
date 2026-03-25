@@ -189,7 +189,7 @@ export class ForestMap {
         // Scatter items across the map. Trees and rocks have collision.
         // We further reduce collision objects to improve Octree build times.
         scatter(treeModels, 15, [0.8, 1.5], 8, true);
-        scatter(treeModels, 15, [0.8, 1.5], 8, false); // Visual only trees
+        scatter(treeModels, 15, [0.8, 1.5], 8, true); // Visual only trees
 
         scatter(bushModels, 20, [0.8, 1.2], 5, false);
 
