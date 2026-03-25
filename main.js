@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ForestMap } from './map/ForestMap.js';
+import { Capsule } from 'three/addons/math/Capsule.js';
 
 // --- Scene Setup ---
 const canvas = document.getElementById('gameCanvas');
@@ -19,16 +20,27 @@ const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerH
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
 scene.add(ambientLight);
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.5); // increased intensity
 dirLight.position.set(-10, 20, 10);
 dirLight.castShadow = true;
-dirLight.shadow.camera.top = 20;
-dirLight.shadow.camera.bottom = -20;
-dirLight.shadow.camera.left = -20;
-dirLight.shadow.camera.right = 20;
+dirLight.shadow.mapSize.width = 2048;
+dirLight.shadow.mapSize.height = 2048;
+dirLight.shadow.camera.top = 30;
+dirLight.shadow.camera.bottom = -30;
+dirLight.shadow.camera.left = -30;
+dirLight.shadow.camera.right = 30;
 dirLight.shadow.camera.near = 0.1;
-dirLight.shadow.camera.far = 40;
+dirLight.shadow.camera.far = 60;
 scene.add(dirLight);
+
+// Sun Mesh
+const sunGeometry = new THREE.SphereGeometry(2, 32, 32);
+const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffffaa });
+const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
+// Position sun far away in the direction of the light
+const lightDirection = dirLight.position.clone().normalize();
+sunMesh.position.copy(lightDirection.multiplyScalar(50));
+scene.add(sunMesh);
 
 // Initialize Forest Map
 export const forestMap = new ForestMap(scene);
@@ -99,6 +111,9 @@ rightLeg.receiveShadow = true;
 player.add(rightLeg);
 
 scene.add(player);
+
+// Player Capsule Collider
+const playerCollider = new Capsule(new THREE.Vector3(0, 0.5, 0), new THREE.Vector3(0, 1.5, 0), 0.35);
 
 // Camera Pivot for 3rd Person View
 const cameraPivot = new THREE.Object3D();
@@ -452,10 +467,14 @@ const minPolarAngle = 0;
 const maxPolarAngle = Math.PI;
 
 document.addEventListener('mousemove', (event) => {
-    if (!controlsEnabled || isMobile) return;
+    if (!controlsEnabled || isMobile || (optionsMenu && optionsMenu.style.display === 'flex')) return;
 
     const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
     const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+
+    if (movementX !== 0 || movementY !== 0) {
+        lastManualLookTime = performance.now();
+    }
 
     updateCameraLook(movementX, movementY);
 });
@@ -488,11 +507,16 @@ function handleLookMove(e) {
         const touch = e.changedTouches[i];
         if (touch.identifier === activeLookTouchId) {
 
-            const movementX = touch.clientX - lastTouchX;
-            const movementY = touch.clientY - lastTouchY;
+            // Multiplied by 10 to drastically increase mobile camera rotation sensitivity
+            const movementX = (touch.clientX - lastTouchX) * 10;
+            const movementY = (touch.clientY - lastTouchY) * 10;
 
             lastTouchX = touch.clientX;
             lastTouchY = touch.clientY;
+
+            if (movementX !== 0 || movementY !== 0) {
+                lastManualLookTime = performance.now();
+            }
 
             updateCameraLook(movementX, movementY);
             break;
@@ -533,6 +557,39 @@ const velocity = new THREE.Vector3();
 const direction = new THREE.Vector3();
 
 let isGrounded = true;
+
+// --- Options Menu & Tracking Camera ---
+const optionsBtn = document.getElementById('options-btn');
+const optionsMenu = document.getElementById('options-menu');
+const closeOptionsBtn = document.getElementById('close-options-btn');
+const trackingCameraCb = document.getElementById('tracking-camera-cb');
+
+let trackingCameraEnabled = false;
+let lastManualLookTime = 0;
+
+if (optionsBtn) {
+    optionsBtn.addEventListener('click', () => {
+        optionsMenu.style.display = 'flex';
+        if (!isMobile) {
+            document.exitPointerLock();
+        }
+    });
+}
+
+if (closeOptionsBtn) {
+    closeOptionsBtn.addEventListener('click', () => {
+        optionsMenu.style.display = 'none';
+        if (!isMobile && controlsEnabled) {
+            document.body.requestPointerLock();
+        }
+    });
+}
+
+if (trackingCameraCb) {
+    trackingCameraCb.addEventListener('change', (e) => {
+        trackingCameraEnabled = e.target.checked;
+    });
+}
 
 // Handle window resize
 window.addEventListener('resize', () => {
@@ -633,37 +690,82 @@ function animate() {
             isGrounded = false;
         }
 
-        // Apply velocity to position
-        player.position.x += velocity.x * delta;
-        player.position.z += velocity.z * delta;
-        player.position.y += velocity.y * delta;
+        // Apply velocity to playerCollider
+        const deltaPosition = velocity.clone().multiplyScalar(delta);
+        playerCollider.translate(deltaPosition);
 
         // Apply boundary restrictions
         if (forestMap && forestMap.mapBounds) {
             const bounds = forestMap.mapBounds;
 
             // Failsafe: if player falls way below map or glitches completely out
-            if (player.position.y < -10 ||
-                player.position.x < bounds.minX - 5 ||
-                player.position.x > bounds.maxX + 5 ||
-                player.position.z < bounds.minZ - 5 ||
-                player.position.z > bounds.maxZ + 5) {
+            if (playerCollider.start.y < -10 ||
+                playerCollider.start.x < bounds.minX - 5 ||
+                playerCollider.start.x > bounds.maxX + 5 ||
+                playerCollider.start.z < bounds.minZ - 5 ||
+                playerCollider.start.z > bounds.maxZ + 5) {
 
                 // Forceful teleport to spawn
-                player.position.copy(forestMap.spawnPoint);
+                playerCollider.start.set(forestMap.spawnPoint.x, forestMap.spawnPoint.y + 0.5, forestMap.spawnPoint.z);
+                playerCollider.end.set(forestMap.spawnPoint.x, forestMap.spawnPoint.y + 1.5, forestMap.spawnPoint.z);
                 velocity.set(0, 0, 0);
             } else {
                 // Normal boundary clamp
-                player.position.x = Math.max(bounds.minX, Math.min(bounds.maxX, player.position.x));
-                player.position.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, player.position.z));
+                playerCollider.start.x = Math.max(bounds.minX, Math.min(bounds.maxX, playerCollider.start.x));
+                playerCollider.start.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, playerCollider.start.z));
+                playerCollider.end.x = Math.max(bounds.minX, Math.min(bounds.maxX, playerCollider.end.x));
+                playerCollider.end.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, playerCollider.end.z));
             }
         }
 
-        // Basic Floor Collision
-        if (player.position.y < 1) { // 1 is half capsule height + radius
+        // Octree Collision
+        if (forestMap && forestMap.worldOctree) {
+            const result = forestMap.worldOctree.capsuleIntersect(playerCollider);
+            isGrounded = false;
+
+            if (result) {
+                isGrounded = result.normal.y > 0;
+
+                if (!isGrounded) {
+                    velocity.addScaledVector(result.normal, -result.normal.dot(velocity));
+                }
+
+                playerCollider.translate(result.normal.multiplyScalar(result.depth));
+            }
+        }
+
+        // Apply capsule position to player mesh
+        player.position.copy(playerCollider.start);
+        player.position.y -= 0.5; // Offset to match mesh centered at origin relative to capsule base
+
+        // Tracking Camera Logic
+        if (trackingCameraEnabled && (performance.now() - lastManualLookTime > 2000)) {
+            // Check if player is moving
+            const horizontalSpeedSq = velocity.x * velocity.x + velocity.z * velocity.z;
+            if (horizontalSpeedSq > 0.1) {
+                const moveYaw = Math.atan2(velocity.x, velocity.z) + Math.PI; // +PI so camera looks ALONG velocity
+
+                // Camera current yaw
+                euler.setFromQuaternion(cameraPivot.quaternion);
+                const currentYaw = euler.y;
+
+                // Shortest angular distance
+                let diff = moveYaw - currentYaw;
+                diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+
+                // Track if within 200 degrees (100 degrees each side) -> roughly 1.745 rad
+                // We use Math.PI * (100/180) = 1.745. So if absolute diff is <= 1.745, track it.
+                if (Math.abs(diff) <= (100 * Math.PI / 180)) {
+                    // Smoothly interpolate camera yaw towards movement yaw
+                    euler.y += diff * 2 * delta; // 2 is the tracking speed factor
+                    cameraPivot.quaternion.setFromEuler(euler);
+                }
+            }
+        }
+
+        // Reset velocity y if grounded and not moving up
+        if (isGrounded && velocity.y < 0) {
             velocity.y = 0;
-            player.position.y = 1;
-            isGrounded = true;
         }
     }
 

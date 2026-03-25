@@ -1,10 +1,12 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { Octree } from 'three/addons/math/Octree.js';
 
 export class ForestMap {
     constructor(scene) {
         this.scene = scene;
         this.loader = new GLTFLoader();
+        this.worldOctree = new Octree();
 
         // Boundaries for the map
         this.mapBounds = {
@@ -35,14 +37,42 @@ export class ForestMap {
         });
     }
 
+    getElevation(x, z) {
+        // Create natural looking hills using sine waves
+        // Make a somewhat flat path in the middle (around x=0)
+        let height = Math.sin(x * 0.1) * Math.cos(z * 0.1) * 3;
+        height += Math.sin(x * 0.05 + 1) * Math.sin(z * 0.05 + 2) * 5;
+
+        // Flatten the center path
+        const distFromCenter = Math.abs(x);
+        const pathWidth = 10;
+        if (distFromCenter < pathWidth) {
+            height *= (distFromCenter / pathWidth);
+        }
+
+        return height;
+    }
+
     async init() {
         // Create Forest Floor
-        const floorGeometry = new THREE.PlaneGeometry(120, 120);
+        const floorGeometry = new THREE.PlaneGeometry(120, 120, 60, 60);
+
+        // Apply elevation to the floor vertices
+        const positions = floorGeometry.attributes.position;
+        for (let i = 0; i < positions.count; i++) {
+            const x = positions.getX(i);
+            const y = positions.getY(i); // Plane is oriented in XY initially
+            const z = this.getElevation(x, -y); // -y because it gets rotated around X by -PI/2
+            positions.setZ(i, z);
+        }
+        floorGeometry.computeVertexNormals();
+
         const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x3d7e35, roughness: 0.9, metalness: 0.1 });
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.rotation.x = -Math.PI / 2;
         floor.receiveShadow = true;
         this.scene.add(floor);
+        this.worldOctree.fromGraphNode(floor);
 
         // Load textures if needed, but GLTFs usually come with their materials.
 
@@ -100,7 +130,7 @@ export class ForestMap {
         ]);
 
         // Helper function to scatter models
-        const scatter = (models, count, scaleRange, avoidCenterRadius = 5) => {
+        const scatter = (models, count, scaleRange, avoidCenterRadius = 5, hasCollision = false) => {
             if (models.length === 0) {
                 console.log(`Scatter called with 0 models!`);
                 return;
@@ -119,21 +149,26 @@ export class ForestMap {
                 const scale = Math.random() * (scaleRange[1] - scaleRange[0]) + scaleRange[0];
                 model.scale.set(scale, scale, scale);
                 model.rotation.y = Math.random() * Math.PI * 2;
-                model.position.set(x, 0, z);
+                const y = this.getElevation(x, z);
+                model.position.set(x, y, z);
+                model.updateMatrixWorld(true);
 
                 this.scene.add(model);
                 this.models.push(model);
+                if (hasCollision) {
+                    this.worldOctree.fromGraphNode(model);
+                }
                 actualCount++;
             }
             console.log(`Successfully added ${actualCount} instances to scene.`);
         };
 
-        // Scatter items across the map
-        scatter(treeModels, 100, [0.8, 1.5], 8);
-        scatter(bushModels, 60, [0.8, 1.2], 5);
-        scatter(rockModels, 40, [0.5, 1.5], 4);
-        scatter(mushroomModels, 80, [0.5, 1.0], 3);
-        scatter(grassModels, 200, [1.0, 1.5], 2);
+        // Scatter items across the map. Trees and rocks have collision.
+        scatter(treeModels, 100, [0.8, 1.5], 8, true);
+        scatter(bushModels, 60, [0.8, 1.2], 5, false);
+        scatter(rockModels, 40, [0.5, 1.5], 4, true);
+        scatter(mushroomModels, 80, [0.5, 1.0], 3, false);
+        scatter(grassModels, 200, [1.0, 1.5], 2, false);
 
         // Create a dense visual boundary of trees and rocks to show limits
         if (treeModels.length > 0) {
@@ -150,10 +185,13 @@ export class ForestMap {
                 const scale = Math.random() * 0.6 + 1.2;
                 model.scale.set(scale, scale, scale);
                 model.rotation.y = Math.random() * Math.PI * 2;
-                model.position.set(x, 0, z);
+                const y = this.getElevation(x, z);
+                model.position.set(x, y, z);
+                model.updateMatrixWorld(true);
 
                 this.scene.add(model);
                 this.models.push(model);
+                this.worldOctree.fromGraphNode(model);
             }
         }
     }
