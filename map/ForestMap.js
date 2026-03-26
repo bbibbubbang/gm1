@@ -138,7 +138,8 @@ export class ForestMap {
             clone.traverse((child) => {
                 if (child.isMesh && child.material) {
                     const matName = child.material.name || '';
-                    if (matName.toLowerCase().includes('leaf')) {
+                    const matNameLower = matName.toLowerCase();
+                    if (matNameLower.includes('leaf') || matNameLower.includes('leav') || matNameLower.includes('pine')) {
                         toRemove.push(child);
                     }
                 }
