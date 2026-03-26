@@ -56,7 +56,7 @@ const clothesMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
 // Body
 const bodyGeometry = new THREE.BoxGeometry(0.6, 1, 0.4);
 const body = new THREE.Mesh(bodyGeometry, clothesMaterial);
-body.position.y = 0.9; // Centered + 0.9 to make foot at y=0
+body.position.y = 1.3; // Centered + 0.8 to stack on top of legs (y=0.4 + 0.4)
 body.castShadow = true;
 body.receiveShadow = true;
 player.add(body);
@@ -64,7 +64,7 @@ player.add(body);
 // Head
 const headGeometry = new THREE.BoxGeometry(0.4, 0.4, 0.4);
 const head = new THREE.Mesh(headGeometry, skinMaterial);
-head.position.y = 1.6; // Top of body (1.4) + half head height (0.2)
+head.position.y = 2.0; // Top of body (1.3 + 0.5) + half head height (0.2)
 head.castShadow = true;
 head.receiveShadow = true;
 player.add(head);
@@ -74,23 +74,23 @@ const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
 const eyeGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
 
 const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-leftEye.position.set(-0.1, 1.65, 0.21); // Front face (+z)
+leftEye.position.set(-0.1, 2.05, 0.21); // Front face (+z)
 player.add(leftEye);
 
 const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-rightEye.position.set(0.1, 1.65, 0.21); // Front face (+z)
+rightEye.position.set(0.1, 2.05, 0.21); // Front face (+z)
 player.add(rightEye);
 
 // Arms
 const armGeometry = new THREE.BoxGeometry(0.2, 0.8, 0.2);
 const leftArm = new THREE.Mesh(armGeometry, skinMaterial);
-leftArm.position.set(-0.4, 1.0, 0); // Next to body
+leftArm.position.set(-0.4, 1.4, 0); // Next to body
 leftArm.castShadow = true;
 leftArm.receiveShadow = true;
 player.add(leftArm);
 
 const rightArm = new THREE.Mesh(armGeometry, skinMaterial);
-rightArm.position.set(0.4, 1.0, 0); // Next to body
+rightArm.position.set(0.4, 1.4, 0); // Next to body
 rightArm.castShadow = true;
 rightArm.receiveShadow = true;
 player.add(rightArm);
@@ -113,7 +113,7 @@ player.add(rightLeg);
 scene.add(player);
 
 // Player Capsule Collider
-const playerCollider = new Capsule(new THREE.Vector3(0, 0.5, 0), new THREE.Vector3(0, 1.5, 0), 0.35);
+const playerCollider = new Capsule(new THREE.Vector3(0, 0.5, 0), new THREE.Vector3(0, 1.9, 0), 0.35);
 
 // Camera Pivot for 3rd Person View
 const cameraPivot = new THREE.Object3D();
@@ -121,7 +121,7 @@ cameraPivot.rotation.order = 'YXZ';
 scene.add(cameraPivot);
 
 // Position camera behind and slightly above the player
-camera.position.set(0, 2, 5);
+camera.position.set(0, 2.4, 5);
 cameraPivot.add(camera);
 
 // --- Controls & Input ---
