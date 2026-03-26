@@ -68,13 +68,13 @@ export class ForestMap {
         floorGeometry.computeVertexNormals();
 
         const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x3d7e35, roughness: 0.9, metalness: 0.1 });
-        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-        floor.rotation.x = -Math.PI / 2;
-        floor.receiveShadow = true;
-        this.scene.add(floor);
+        this.floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        this.floor.rotation.x = -Math.PI / 2;
+        this.floor.receiveShadow = true;
+        this.scene.add(this.floor);
 
         const collidableGroup = new THREE.Group();
-        collidableGroup.add(floor.clone());
+        collidableGroup.add(this.floor.clone());
 
         // Load textures if needed, but GLTFs usually come with their materials.
 
@@ -233,5 +233,40 @@ export class ForestMap {
         this.worldOctree.fromGraphNode(collidableGroup);
         console.timeEnd("buildOctree");
         console.log("Octree built successfully.");
+    }
+
+    cleanup() {
+        console.log("Cleaning up ForestMap...");
+        if (this.floor) {
+            this.scene.remove(this.floor);
+            this.floor.geometry.dispose();
+            if (this.floor.material) {
+                if (Array.isArray(this.floor.material)) {
+                    this.floor.material.forEach(m => m.dispose());
+                } else {
+                    this.floor.material.dispose();
+                }
+            }
+        }
+
+        this.models.forEach(model => {
+            this.scene.remove(model);
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(m => m.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                    }
+                }
+            });
+        });
+
+        this.models = [];
+        this.worldOctree = new Octree(); // Reset octree
+        console.log("ForestMap cleanup complete.");
     }
 }

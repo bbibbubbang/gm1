@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ForestMap } from './map/ForestMap.js';
+import { VillageMap } from './map/VillageMap.js';
 import { Capsule } from 'three/addons/math/Capsule.js';
 
 // --- Scene Setup ---
@@ -42,9 +43,45 @@ const lightDirection = dirLight.position.clone().normalize();
 sunMesh.position.copy(lightDirection.multiplyScalar(50));
 scene.add(sunMesh);
 
-// Initialize Forest Map
-export const forestMap = new ForestMap(scene);
-forestMap.init();
+// Initialize Map System
+export let currentMap = null;
+const mapInstances = {
+    forest: new ForestMap(scene),
+    village: new VillageMap(scene)
+};
+
+const loadingScreen = document.getElementById('loading-screen');
+const loadingText = document.getElementById('loading-text');
+
+async function loadMap(mapId) {
+    if (currentMap) {
+        currentMap.cleanup();
+    }
+
+    loadingScreen.style.display = 'flex';
+    instructions.style.display = 'none';
+    loadingText.textContent = `Loading ${mapId} map...`;
+
+    currentMap = mapInstances[mapId];
+    await currentMap.init();
+
+    // Reset player position
+    playerCollider.start.set(currentMap.spawnPoint.x, currentMap.spawnPoint.y + 0.5, currentMap.spawnPoint.z);
+    playerCollider.end.set(currentMap.spawnPoint.x, currentMap.spawnPoint.y + 1.9, currentMap.spawnPoint.z);
+    velocity.set(0, 0, 0);
+
+    loadingScreen.style.display = 'none';
+    instructions.style.display = 'block';
+}
+
+// Initial map load
+// We call this right away, and wait for it.
+setTimeout(() => {
+    loadMap('forest').catch(e => {
+        console.error("Failed to load initial map:", e);
+        loadingText.textContent = "Error loading map!";
+    });
+}, 0);
 
 // Player setup
 const player = new THREE.Group();
@@ -583,6 +620,7 @@ const optionsMenu = document.getElementById('options-menu');
 const closeOptionsBtn = document.getElementById('close-options-btn');
 const trackingCameraCb = document.getElementById('tracking-camera-cb');
 const fullscreenBtn = document.getElementById('fullscreen-btn');
+const mapSelect = document.getElementById('map-select');
 
 let trackingCameraEnabled = false;
 let lastManualLookTime = 0;
@@ -593,6 +631,21 @@ if (optionsBtn) {
         if (!isMobile) {
             document.exitPointerLock();
         }
+    });
+}
+
+if (mapSelect) {
+    mapSelect.addEventListener('change', (e) => {
+        const selectedMap = e.target.value;
+        optionsMenu.style.display = 'none'; // Close options menu
+        if (!isMobile) {
+            document.exitPointerLock();
+        }
+
+        loadMap(selectedMap).catch(err => {
+            console.error("Failed to switch map:", err);
+            loadingText.textContent = "Error loading map!";
+        });
     });
 }
 
@@ -731,8 +784,8 @@ function animate() {
         playerCollider.translate(deltaPosition);
 
         // Apply boundary restrictions
-        if (forestMap && forestMap.mapBounds) {
-            const bounds = forestMap.mapBounds;
+        if (currentMap && currentMap.mapBounds) {
+            const bounds = currentMap.mapBounds;
 
             // Failsafe: if player falls way below map or glitches completely out
             if (playerCollider.start.y < -10 ||
@@ -742,8 +795,8 @@ function animate() {
                 playerCollider.start.z > bounds.maxZ + 5) {
 
                 // Forceful teleport to spawn
-                playerCollider.start.set(forestMap.spawnPoint.x, forestMap.spawnPoint.y + 0.5, forestMap.spawnPoint.z);
-                playerCollider.end.set(forestMap.spawnPoint.x, forestMap.spawnPoint.y + 1.5, forestMap.spawnPoint.z);
+                playerCollider.start.set(currentMap.spawnPoint.x, currentMap.spawnPoint.y + 0.5, currentMap.spawnPoint.z);
+                playerCollider.end.set(currentMap.spawnPoint.x, currentMap.spawnPoint.y + 1.5, currentMap.spawnPoint.z);
                 velocity.set(0, 0, 0);
             } else {
                 // Normal boundary clamp
@@ -755,8 +808,8 @@ function animate() {
         }
 
         // Octree Collision
-        if (forestMap && forestMap.worldOctree) {
-            const result = forestMap.worldOctree.capsuleIntersect(playerCollider);
+        if (currentMap && currentMap.worldOctree) {
+            const result = currentMap.worldOctree.capsuleIntersect(playerCollider);
             isGrounded = false;
 
             if (result) {
