@@ -40,8 +40,8 @@ export class ForestMap {
     getElevation(x, z) {
         // Create natural looking hills using sine waves
         // Make a somewhat flat path in the middle (around x=0)
-        let height = Math.sin(x * 0.1) * Math.cos(z * 0.1) * 3;
-        height += Math.sin(x * 0.05 + 1) * Math.sin(z * 0.05 + 2) * 5;
+        let height = Math.sin(x * 0.1) * Math.cos(z * 0.1) * 1;
+        height += Math.sin(x * 0.05 + 1) * Math.sin(z * 0.05 + 2) * 2;
 
         // Flatten the center path
         const distFromCenter = Math.abs(x);
@@ -195,7 +195,7 @@ export class ForestMap {
         scatter(bushModels, 20, [0.8, 1.2], 5, false);
 
         scatter(rockModels, 5, [0.5, 1.5], 4, true);
-        scatter(rockModels, 5, [0.5, 1.5], 4, false); // Visual only rocks
+        scatter(rockModels, 5, [0.5, 1.5], 4, true); // Visual only rocks
 
         scatter(mushroomModels, 25, [0.5, 1.0], 3, false);
         scatter(grassModels, 60, [1.0, 1.5], 2, false);
@@ -223,7 +223,7 @@ export class ForestMap {
                 this.models.push(model);
 
                 // Do not add boundary trees to collision, player boundary checks prevent going here anyway
-                // collidableGroup.add(model.clone());
+                collidableGroup.add(cloneForCollision(model));
             }
         }
 

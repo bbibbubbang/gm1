@@ -99,13 +99,13 @@ player.add(rightArm);
 const legGeometry = new THREE.BoxGeometry(0.25, 0.8, 0.25);
 const pantsMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
 const leftLeg = new THREE.Mesh(legGeometry, pantsMaterial);
-leftLeg.position.set(-0.15, 0, 0); // Raised by 0.9 so bottom is at 0 (-0.4 for leg center)
+leftLeg.position.set(-0.15, 0.4, 0); // Raised by 0.9 so bottom is at 0 (-0.4 for leg center)
 leftLeg.castShadow = true;
 leftLeg.receiveShadow = true;
 player.add(leftLeg);
 
 const rightLeg = new THREE.Mesh(legGeometry, pantsMaterial);
-rightLeg.position.set(0.15, 0, 0); // Raised by 0.9
+rightLeg.position.set(0.15, 0.4, 0); // Raised by 0.9
 rightLeg.castShadow = true;
 rightLeg.receiveShadow = true;
 player.add(rightLeg);
