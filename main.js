@@ -433,6 +433,8 @@ const activeProjectiles = [];
 const activeEffects = [];
 
 function executeSkill(skillNumber) {
+    if (!currentTarget) return;
+
     const forwardVector = new THREE.Vector3(0, 0, -1);
     forwardVector.applyQuaternion(cameraPivot.quaternion);
 
@@ -700,12 +702,23 @@ window.addEventListener('resize', () => {
 // --- Targeting System ---
 export let currentTarget = null;
 const targetingRadius = 10;
-const auraGeometry = new THREE.RingGeometry(0.8, 1, 32);
-const auraMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
-const targetAura = new THREE.Mesh(auraGeometry, auraMaterial);
+
+// Create target aura group
+const targetAura = new THREE.Group();
 targetAura.rotation.x = -Math.PI / 2;
 targetAura.position.y = 0.05; // Slightly above ground
 targetAura.visible = false;
+
+// Create 3 curved triangles for the aura
+const auraGeometry = new THREE.RingGeometry(0.8, 1, 3, 1, 0, Math.PI / 3);
+const auraMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+
+for (let i = 0; i < 3; i++) {
+    const auraMesh = new THREE.Mesh(auraGeometry, auraMaterial);
+    auraMesh.rotation.z = (i * 2 * Math.PI) / 3;
+    targetAura.add(auraMesh);
+}
+
 scene.add(targetAura);
 
 
@@ -741,7 +754,7 @@ function animate() {
             // Adjust aura scale based on target size if needed, using a default for the dummy
             targetAura.scale.set(1.5, 1.5, 1.5);
 
-            targetAura.rotation.z += delta * 2; // Rotate the ring
+            targetAura.rotation.z += delta * 0.5; // Rotate the ring slowly
         } else {
             targetAura.visible = false;
         }
