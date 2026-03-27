@@ -66,11 +66,15 @@ export class VillageMap {
         const mtlFile = 'Materials_Modular_Village.mtl';
 
         const objectsToLoad = [
+            // Road
             { file: 'Cobblestone_Floor_1.obj', pos: [0, 0, 0], rot: [0, 0, 0], scale: 1 },
             { file: 'Cobblestone_Floor_1.obj', pos: [4, 0, 0], rot: [0, 0, 0], scale: 1 },
             { file: 'Cobblestone_Floor_1.obj', pos: [-4, 0, 0], rot: [0, 0, 0], scale: 1 },
             { file: 'Cobblestone_Floor_1.obj', pos: [0, 0, 4], rot: [0, 0, 0], scale: 1 },
             { file: 'Cobblestone_Floor_1.obj', pos: [0, 0, -4], rot: [0, 0, 0], scale: 1 },
+            { file: 'Cobblestone_Floor_1.obj', pos: [-8, 0, 0], rot: [0, 0, 0], scale: 1 },
+            { file: 'Cobblestone_Floor_1.obj', pos: [8, 0, 0], rot: [0, 0, 0], scale: 1 },
+            { file: 'Cobblestone_Floor_1.obj', pos: [12, 0, 0], rot: [0, 0, 0], scale: 1 },
 
             // Central Well
             { file: 'Prop_Well_Cobblestone.obj', pos: [0, 0, 0], rot: [0, 0, 0], scale: 1 },
@@ -98,13 +102,35 @@ export class VillageMap {
 
             // Street Lamp
             { file: 'Prop_Lamp_Street.obj', pos: [4, 0, -4], rot: [0, Math.PI/2, 0], scale: 1 },
+            { file: 'Prop_Lamp_Street.obj', pos: [10, 0, -4], rot: [0, Math.PI/2, 0], scale: 1 },
 
             // Boat
             { file: 'Prop_Boat_1.obj', pos: [-8, 0, 8], rot: [0, Math.PI/4, 0], scale: 1 },
 
             // Stucco Arch
             { file: 'Stucco_Arch_Half.obj', pos: [0, 0, -8], rot: [0, 0, 0], scale: 1 },
-            { file: 'Stucco_Arch_Half_Outer.obj', pos: [-4, 0, -8], rot: [0, 0, 0], scale: 1 }
+            { file: 'Stucco_Arch_Half_Outer.obj', pos: [-4, 0, -8], rot: [0, 0, 0], scale: 1 },
+
+            // House 1 (Stucco walls, roof, door, window)
+            // Left wall
+            { file: 'Stucco_Block.obj', pos: [10, 0, 4], rot: [0, Math.PI/2, 0], scale: 1 },
+            { file: 'Stucco_Block.obj', pos: [10, 2, 4], rot: [0, Math.PI/2, 0], scale: 1 },
+            // Right wall
+            { file: 'Stucco_Block.obj', pos: [14, 0, 4], rot: [0, Math.PI/2, 0], scale: 1 },
+            { file: 'Stucco_Block.obj', pos: [14, 2, 4], rot: [0, Math.PI/2, 0], scale: 1 },
+            // Back wall
+            { file: 'Stucco_Block.obj', pos: [12, 0, 6], rot: [0, 0, 0], scale: 1 },
+            { file: 'Stucco_Block.obj', pos: [12, 2, 6], rot: [0, 0, 0], scale: 1 },
+
+            // Front wall (door and window)
+            // Replace middle block with door/window props directly or leave a gap
+            { file: 'Wall_Prop_Door_Simple.obj', pos: [11, 0, 2], rot: [0, 0, 0], scale: 1 },
+            { file: 'Stucco_Window_Single_Wide.obj', pos: [13, 0, 2], rot: [0, 0, 0], scale: 1 },
+            { file: 'Stucco_Block.obj', pos: [12, 2, 2], rot: [0, 0, 0], scale: 1 },
+
+            // Roof
+            { file: 'Roof_Straight_Side.obj', pos: [12, 4, 3], rot: [Math.PI/4, 0, 0], scale: 1.5 },
+            { file: 'Roof_Straight_Side.obj', pos: [12, 4, 5], rot: [-Math.PI/4, 0, 0], scale: 1.5 }
         ];
 
         try {
