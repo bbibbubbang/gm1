@@ -20,6 +20,7 @@ export class ForestMap {
         this.spawnPoint = new THREE.Vector3(0, 1, 0);
 
         this.models = [];
+        this.enemies = [];
     }
 
     async loadModel(url) {
@@ -231,8 +232,48 @@ export class ForestMap {
         console.time("buildOctree");
         collidableGroup.updateMatrixWorld(true);
         this.worldOctree.fromGraphNode(collidableGroup);
+        // Add Dummy Monster in the center
+        this.addDummyMonster();
+
         console.timeEnd("buildOctree");
         console.log("Octree built successfully.");
+    }
+
+    addDummyMonster() {
+        const dummyGroup = new THREE.Group();
+
+        // Body
+        const bodyGeo = new THREE.BoxGeometry(0.8, 1.2, 0.8);
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.position.y = 0.6; // Center of body
+        body.castShadow = true;
+        body.receiveShadow = true;
+        dummyGroup.add(body);
+
+        // Head
+        const headGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        const headMat = new THREE.MeshStandardMaterial({ color: 0xaa0000 });
+        const head = new THREE.Mesh(headGeo, headMat);
+        head.position.y = 1.45; // Top of body (1.2) + half head (0.25)
+        head.castShadow = true;
+        head.receiveShadow = true;
+        dummyGroup.add(head);
+
+        // Position dummy slightly offset from center to not overlap spawn
+        const yPos = this.getElevation(3, 3);
+        dummyGroup.position.set(3, yPos, 3);
+
+        // Make it identifiable as an enemy
+        dummyGroup.isEnemy = true;
+        dummyGroup.hp = Infinity; // Infinite health
+        dummyGroup.maxHp = Infinity;
+
+        this.scene.add(dummyGroup);
+        this.models.push(dummyGroup); // So it gets cleaned up
+        this.enemies.push(dummyGroup);
+
+        console.log("Dummy monster added at (3, y, 3).");
     }
 
     cleanup() {

@@ -196,6 +196,7 @@ instructions.addEventListener('click', () => {
         joystickZone.style.display = 'block';
         touchLookZone.style.display = 'block';
         document.getElementById('jump-btn').style.display = 'flex';
+        document.getElementById('attack-btn').style.display = 'flex';
 
     } else {
         // Desktop flow
@@ -218,6 +219,14 @@ if (jumpBtn) {
     jumpBtn.addEventListener('touchcancel', (e) => {
         e.preventDefault();
         keys.Space = false;
+    }, { passive: false });
+}
+
+const attackBtn = document.getElementById('attack-btn');
+if (attackBtn) {
+    attackBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        useSkill(activeSlotIndex);
     }, { passive: false });
 }
 
@@ -339,7 +348,7 @@ function updateJoystick(touch) {
 
 // --- Hotbar & Skill System ---
 const hotbarContainer = document.getElementById('hotbar-container');
-const numSlots = 9;
+const numSlots = 3;
 const hotbarSlots = [];
 let activeSlotIndex = 0;
 
@@ -421,98 +430,100 @@ function useSkill(slotIndex) {
 
 // --- Test Skills Implementation ---
 const activeProjectiles = [];
+const activeEffects = [];
 
 function executeSkill(skillNumber) {
     const forwardVector = new THREE.Vector3(0, 0, -1);
     forwardVector.applyQuaternion(cameraPivot.quaternion);
 
+    // We expect skillNumber to be 1, 2, or 3
     switch (skillNumber) {
-        case 1: // Fireball (Red Sphere projectile)
-            createProjectile(0xff4500, forwardVector);
+        case 1:
+            castSingleTargetSkill(forwardVector);
             break;
-        case 2: // Ice Block (Blue Cube in front of player)
-            createBlock(0x00bfff, forwardVector);
+        case 2:
+            castAoESkill(forwardVector);
             break;
-        case 3: // Self-Heal (Green aura around player)
-            createAura(0x32cd32);
-            break;
-        case 4: // Dash (Quick forward movement)
-            performDash(forwardVector);
-            break;
-        default:
-            // Placeholder for other skills
-            createProjectile(0xffffff, forwardVector); // White sphere default
+        case 3:
+            castProjectileSkill(forwardVector);
             break;
     }
 }
 
-function createProjectile(color, direction) {
-    const geometry = new THREE.SphereGeometry(0.3, 16, 16);
-    const material = new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: 0.5 });
+function castSingleTargetSkill(forwardVector) {
+    const geometry = new THREE.CylinderGeometry(0.5, 0.5, 10, 16);
+    const material = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.8 });
+    const lightning = new THREE.Mesh(geometry, material);
+
+    if (currentTarget) {
+        lightning.position.copy(currentTarget.position);
+        lightning.position.y += 5; // Center the cylinder vertically
+    } else {
+        // Cast 5 units in front
+        lightning.position.copy(player.position).add(forwardVector.clone().multiplyScalar(5));
+        lightning.position.y += 5;
+    }
+
+    scene.add(lightning);
+
+    activeEffects.push({
+        mesh: lightning,
+        type: 'fade',
+        lifeTime: 0.5,
+        maxLifeTime: 0.5
+    });
+}
+
+function castAoESkill(forwardVector) {
+    const geometry = new THREE.SphereGeometry(1, 32, 32);
+    const material = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.8, wireframe: true });
+    const explosion = new THREE.Mesh(geometry, material);
+
+    if (currentTarget) {
+        explosion.position.copy(currentTarget.position);
+    } else {
+        // Cast centered on player
+        explosion.position.copy(player.position);
+    }
+
+    explosion.position.y += 1;
+
+    scene.add(explosion);
+
+    activeEffects.push({
+        mesh: explosion,
+        type: 'expand_fade',
+        lifeTime: 0.8,
+        maxLifeTime: 0.8,
+        maxScale: 6
+    });
+}
+
+function castProjectileSkill(forwardVector) {
+    const geometry = new THREE.SphereGeometry(0.4, 16, 16);
+    const material = new THREE.MeshBasicMaterial({ color: 0xff00ff });
     const projectile = new THREE.Mesh(geometry, material);
 
-    // Start slightly in front of the player
-    projectile.position.copy(player.position).add(direction.clone().multiplyScalar(1.5));
-    // Offset height to roughly chest/head level
-    projectile.position.y += 0.5;
+    projectile.position.copy(player.position).add(forwardVector.clone().multiplyScalar(1.5));
+    projectile.position.y += 1;
+
+    let velocity = forwardVector.clone().normalize().multiplyScalar(40);
+
+    if (currentTarget) {
+        // Calculate direction exactly towards target's center
+        const targetPos = currentTarget.position.clone();
+        targetPos.y += 1; // Aim at center of body
+        const dirToTarget = targetPos.sub(projectile.position).normalize();
+        velocity = dirToTarget.multiplyScalar(40);
+    }
 
     scene.add(projectile);
 
     activeProjectiles.push({
         mesh: projectile,
-        velocity: direction.clone().multiplyScalar(30), // Speed
-        lifeTime: 2.0 // Seconds
+        velocity: velocity,
+        lifeTime: 2.0
     });
-}
-
-function createBlock(color, direction) {
-    const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
-    const material = new THREE.MeshStandardMaterial({ color: color, transparent: true, opacity: 0.8 });
-    const block = new THREE.Mesh(geometry, material);
-
-    // Spawn block 3 units in front
-    block.position.copy(player.position).add(direction.clone().multiplyScalar(3));
-    // Snap to floor roughly
-    block.position.y = 0.75;
-
-    scene.add(block);
-
-    // Remove after a few seconds
-    setTimeout(() => {
-        scene.remove(block);
-        geometry.dispose();
-        material.dispose();
-    }, 3000);
-}
-
-function createAura(color) {
-    const geometry = new THREE.TorusGeometry(1, 0.1, 8, 24);
-    const material = new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: 0.8 });
-    const aura = new THREE.Mesh(geometry, material);
-
-    aura.rotation.x = Math.PI / 2;
-    player.add(aura); // Attach to player
-
-    // Animate scale up and fade out (simplified)
-    let scale = 1;
-    const interval = setInterval(() => {
-        scale += 0.1;
-        aura.scale.set(scale, scale, scale);
-        if (scale > 2) {
-            player.remove(aura);
-            geometry.dispose();
-            material.dispose();
-            clearInterval(interval);
-        }
-    }, 50);
-}
-
-function performDash(direction) {
-    // A simplified dash: apply a large impulse to current velocity
-    // Assuming direction is a normalized vector based on camera look direction
-    velocity.x += direction.x * 30;
-    velocity.z += direction.z * 30;
-    // Don't dash up/down significantly to keep it simple, just planar
 }
 
 
@@ -686,6 +697,18 @@ window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// --- Targeting System ---
+export let currentTarget = null;
+const targetingRadius = 10;
+const auraGeometry = new THREE.RingGeometry(0.8, 1, 32);
+const auraMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+const targetAura = new THREE.Mesh(auraGeometry, auraMaterial);
+targetAura.rotation.x = -Math.PI / 2;
+targetAura.position.y = 0.05; // Slightly above ground
+targetAura.visible = false;
+scene.add(targetAura);
+
+
 // Render Loop Setup
 const clock = new THREE.Clock();
 
@@ -693,6 +716,39 @@ function animate() {
     requestAnimationFrame(animate);
 
     const delta = clock.getDelta();
+
+    // --- Targeting Logic ---
+    if (currentMap && currentMap.enemies) {
+        let closestDist = targetingRadius;
+        let newTarget = null;
+
+        for (const enemy of currentMap.enemies) {
+            const dist = player.position.distanceTo(enemy.position);
+            if (dist < closestDist) {
+                closestDist = dist;
+                newTarget = enemy;
+            }
+        }
+
+        currentTarget = newTarget;
+
+        if (currentTarget) {
+            targetAura.visible = true;
+            targetAura.position.x = currentTarget.position.x;
+            targetAura.position.z = currentTarget.position.z;
+            targetAura.position.y = currentTarget.position.y + 0.05; // Just above the target's base height
+
+            // Adjust aura scale based on target size if needed, using a default for the dummy
+            targetAura.scale.set(1.5, 1.5, 1.5);
+
+            targetAura.rotation.z += delta * 2; // Rotate the ring
+        } else {
+            targetAura.visible = false;
+        }
+    } else {
+        currentTarget = null;
+        targetAura.visible = false;
+    }
 
     // --- Update Projectiles ---
     for (let i = activeProjectiles.length - 1; i >= 0; i--) {
@@ -707,6 +763,29 @@ function animate() {
         } else {
             // Move projectile
             p.mesh.position.add(p.velocity.clone().multiplyScalar(delta));
+        }
+    }
+
+    // --- Update Effects ---
+    for (let i = activeEffects.length - 1; i >= 0; i--) {
+        const e = activeEffects[i];
+        e.lifeTime -= delta;
+
+        if (e.lifeTime <= 0) {
+            scene.remove(e.mesh);
+            e.mesh.geometry.dispose();
+            e.mesh.material.dispose();
+            activeEffects.splice(i, 1);
+        } else {
+            const progress = 1 - (e.lifeTime / e.maxLifeTime);
+
+            if (e.type === 'fade') {
+                e.mesh.material.opacity = 0.8 * (1 - progress);
+            } else if (e.type === 'expand_fade') {
+                const s = 1 + (e.maxScale - 1) * progress;
+                e.mesh.scale.set(s, s, s);
+                e.mesh.material.opacity = 0.8 * (1 - progress);
+            }
         }
     }
 
